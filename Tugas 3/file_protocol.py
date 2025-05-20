@@ -23,7 +23,10 @@ class FileProtocol:
         self.file = FileInterface()
     def proses_string(self,string_datamasuk=''):
         logging.warning(f"string diproses: {string_datamasuk}")
-        c = shlex.split(string_datamasuk.lower())
+        c = shlex.split(string_datamasuk)
+        if not c:
+            return json.dumps(dict(status='ERROR', data='perintah kosong'))
+        c[0] = c[0].lower()
         try:
             c_request = c[0].strip()
             logging.warning(f"memproses request: {c_request}")

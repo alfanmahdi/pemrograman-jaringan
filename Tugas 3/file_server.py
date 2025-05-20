@@ -15,21 +15,22 @@ class ProcessTheClient(threading.Thread):
         self.address = address
 
     def run(self):
+        buffer = ""
         while True:
             try:
-                data = self.connection.recv(32)
-                if data:
-                    d = data.decode()
-                    hasil = fp.proses_string(d)
-                    hasil = hasil + "\r\n\r\n"
-                    self.connection.sendall(hasil.encode())
-                else:
+                chunk = self.connection.recv(4096)
+                if not chunk:
                     break
+                buffer += chunk.decode()
+
+                while "\r\n\r\n" in buffer:
+                    cmd, _, buffer = buffer.partition("\r\n\r\n")
+                    hasil = fp.proses_string(cmd)
+                    self.connection.sendall((hasil + "\r\n\r\n").encode())
             except Exception as e:
                 logging.warning(f"Error saat memproses client: {e}")
                 break
         self.connection.close()
-
 
 class Server(threading.Thread):
     def __init__(self, ipaddress='0.0.0.0', port=6666):
@@ -66,4 +67,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

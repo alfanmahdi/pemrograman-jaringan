@@ -14,18 +14,19 @@ def send_command(command_str=""):
     logging.warning(f"connecting to {server_address}")
     try:
         logging.warning(f"sending message: {command_str.split()[0]}")
-        sock.sendall(command_str.encode())
+        sock.sendall((command_str + "\r\n\r\n").encode())
 
         data_received = ""
         while True:
-            chunk = sock.recv(1024)
+            chunk = sock.recv(4096)
             if not chunk:
                 break
             data_received += chunk.decode()
             if "\r\n\r\n" in data_received:
                 break
 
-        return json.loads(data_received)
+        raw, _sep, _rest = data_received.partition("\r\n\r\n")
+        return json.loads(raw)
     except Exception as e:
         logging.warning(f"error during data receiving: {e}")
         return {'status':'ERROR','data':str(e)}
@@ -86,4 +87,8 @@ if __name__ == '__main__':
     remote_delete('contoh.txt')
     remote_list()
     remote_get('donalbebek.jpg')
+    remote_get('pokijan.jpg')
+    remote_get('rfc2616.pdf')
+    remote_upload('aku.pdf')
+    remote_upload('a.jpg')
     
