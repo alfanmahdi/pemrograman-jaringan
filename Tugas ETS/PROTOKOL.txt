@@ -1,0 +1,59 @@
+FILE SERVER
+TUJUAN: Melayani client dalam request file server
+
+ATURAN PROTOKOL:
+- Client harus mengirimkan request dalam bentuk string
+- String harus dalam format:
+  REQUEST spasi PARAMETER
+- PARAMETER dapat berkembang menjadi PARAMETER1 spasi PARAMETER2 dan seterusnya
+
+REQUEST YANG DILAYANI:
+
+1. LIST
+   * TUJUAN: Mendapatkan daftar seluruh file di server
+   * PARAMETER: tidak ada
+   * RESULT:
+     - BERHASIL:
+       - status: OK
+       - data: list nama file
+     - GAGAL:
+       - status: ERROR
+       - data: pesan kesalahan
+
+2. GET
+   * TUJUAN: Mendapatkan isi file dalam Base64
+   * PARAMETER:
+     - PARAMETER1: nama file
+   * RESULT:
+     - BERHASIL:
+       - status: OK
+       - data_namafile: nama file yang diminta
+       - data_file: isi file dalam Base64
+     - GAGAL:
+       - status: ERROR
+       - data: pesan kesalahan
+
+3. UPLOAD
+   * TUJUAN: Meng-upload file dari client ke server
+   * PARAMETER:
+     - PARAMETER1: nama file tujuan
+     - PARAMETER2: konten file yang telah di-*encode* dalam Base64
+   * RESULT:
+     - BERHASIL:
+       - status: OK
+       - data: 'File berhasil di-upload'
+     - GAGAL:
+       - status: ERROR
+       - data: pesan kesalahan
+
+4. DELETE
+   * TUJUAN: Menghapus file di server
+   * PARAMETER:
+     - PARAMETER1: nama file yang akan dihapus
+   * RESULT:
+     - BERHASIL:
+       - status: OK
+       - data: 'File berhasil dihapus'
+     - GAGAL:
+       - status: ERROR
+       - data: pesan kesalahan
