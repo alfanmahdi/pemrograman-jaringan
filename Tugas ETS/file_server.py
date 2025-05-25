@@ -1,69 +1,77 @@
-from socket import *
 import socket
-import threading
 import logging
-import time
-import sys
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import argparse
 
 from file_protocol import FileProtocol
 fp = FileProtocol()
 
-class ProcessTheClient(threading.Thread):
-    def __init__(self, connection, address):
-        threading.Thread.__init__(self)
-        self.connection = connection
-        self.address = address
-
-    def run(self):
-        buffer = ""
+def handle_connection(conn, addr):
+    """
+    Loop menerima perintah sampai client disconnect.
+    Menggunakan delimiter '\r\n\r\n' untuk menandai akhir setiap request.
+    """
+    buffer = ""
+    try:
         while True:
-            try:
-                chunk = self.connection.recv(4096)
-                if not chunk:
-                    break
-                buffer += chunk.decode()
-
-                while "\r\n\r\n" in buffer:
-                    cmd, _, buffer = buffer.partition("\r\n\r\n")
-                    hasil = fp.proses_string(cmd)
-                    self.connection.sendall((hasil + "\r\n\r\n").encode())
-            except Exception as e:
-                logging.warning(f"Error saat memproses client: {e}")
+            chunk = conn.recv(1048576)
+            if not chunk:
                 break
-        self.connection.close()
+            buffer += chunk.decode()
+            while "\r\n\r\n" in buffer:
+                cmd, _, buffer = buffer.partition("\r\n\r\n")
+                logging.warning(f"[{addr}] Request: {cmd!r}")
+                resp = fp.proses_string(cmd)
+                conn.sendall((resp + "\r\n\r\n").encode())
+    except Exception as e:
+        logging.warning(f"[{addr}] Error: {e}")
+    finally:
+        conn.close()
+        logging.warning(f"[{addr}] Disconnected")
 
-class Server(threading.Thread):
-    def __init__(self, ipaddress='0.0.0.0', port=6666):
-        threading.Thread.__init__(self)
-        self.ipinfo = (ipaddress, port)
-        self.the_clients = []
+def serve_threadpool(host, port, max_workers):
+    """Server dengan ThreadPoolExecutor."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((host, port))
+    sock.listen()
+    logging.warning(f"ThreadPool server on {host}:{port}, workers={max_workers}")
 
-        # Inisialisasi socket dan aktifkan opsi reuse address
-        self.my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        while True:
+            conn, addr = sock.accept()
+            logging.warning(f"Accepted {addr}")
+            pool.submit(handle_connection, conn, addr)
 
-    def run(self):
-        try:
-            logging.warning(f"Server berjalan di ip address {self.ipinfo}")
-            self.my_socket.bind(self.ipinfo)
-            self.my_socket.listen(5)
+def serve_processpool(host, port, max_workers):
+    """Server dengan ProcessPoolExecutor."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((host, port))
+    sock.listen()
+    logging.warning(f"ProcessPool server on {host}:{port}, workers={max_workers}")
 
-            while True:
-                connection, client_address = self.my_socket.accept()
-                logging.warning(f"Connection from {client_address}")
-
-                clt = ProcessTheClient(connection, client_address)
-                clt.start()
-                self.the_clients.append(clt)
-        except Exception as e:
-            logging.error(f"Gagal menjalankan server: {e}")
-            self.my_socket.close()
-
-
-def main():
-    svr = Server(ipaddress='0.0.0.0', port=6767)
-    svr.start()
-
+    with ProcessPoolExecutor(max_workers=max_workers) as pool:
+        while True:
+            conn, addr = sock.accept()
+            logging.warning(f"Accepted {addr}")
+            # NB: socket objects are picklable in Python3.7+
+            pool.submit(handle_connection, conn, addr)
 
 if __name__ == "__main__":
-    main()
+    logging.basicConfig(level=logging.WARNING,
+                        format='%(asctime)s %(levelname)s:%(message)s')
+    p = argparse.ArgumentParser(description="File Server with pool concurrency")
+    p.add_argument('--mode', choices=['thread','process'], default='thread',
+                   help="Use thread-pool or process-pool")
+    p.add_argument('--workers', type=int, default=5,
+                   help="Number of workers in the pool")
+    p.add_argument('--host', default='0.0.0.0')
+    p.add_argument('--port', type=int, default=6767)
+    args = p.parse_args()
+
+    if args.mode == 'thread':
+        serve_threadpool(args.host, args.port, args.workers)
+    else:
+        serve_processpool(args.host, args.port, args.workers)
+        

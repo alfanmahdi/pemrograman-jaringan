@@ -1,6 +1,5 @@
 import json
 import logging
-import shlex
 
 from file_interface import FileInterface
 
@@ -16,14 +15,12 @@ pada akhirnya akan diproses dalam bentuk string
 string
 """
 
-
-
 class FileProtocol:
     def __init__(self):
         self.file = FileInterface()
     def proses_string(self,string_datamasuk=''):
         logging.warning(f"string diproses: {string_datamasuk}")
-        c = shlex.split(string_datamasuk)
+        c = string_datamasuk.split(None,2)
         if not c:
             return json.dumps(dict(status='ERROR', data='perintah kosong'))
         c[0] = c[0].lower()
