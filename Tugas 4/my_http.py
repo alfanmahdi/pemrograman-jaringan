@@ -1,10 +1,7 @@
-import sys
 import os.path
-import uuid
 from glob import glob
 from datetime import datetime
 import json
-import base64
 
 class HttpServer:
     def __init__(self):
